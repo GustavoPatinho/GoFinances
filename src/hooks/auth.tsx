@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext, useState } from 'react';
+import React, { createContext, ReactNode, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -21,6 +21,8 @@ interface AuthContextData {
   user: User;
   signInWithGoogle(): Promise<void>;
   signInWithApple(): Promise<void>;
+  signOut(): Promise<void>;
+  userStorageLoading: boolean;
 }
 
 interface AuthorizationResponse {
@@ -34,7 +36,7 @@ const AuthContext = createContext({} as AuthContextData);
 
 function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User>({} as User)
-
+  const [userStorageLoading, setUserStoragedLoading] = useState(true)
   const userStorageKey = '@gofinances:user';
 
   async function signInWithGoogle() {
@@ -73,11 +75,13 @@ function AuthProvider({ children }: AuthProviderProps) {
         ]
       });
       if (credential) {
+        const name = credential.fullName!.givenName!;
+        const photo = `https://ui-avatars.com/api/?name=${name}&length=1`
         const userLogged = {
           id: String(credential.user),
           email: credential.email!,
-          name: credential.fullName!.givenName!,
-          photo: undefined
+          name,
+          photo,
         };
         setUser(userLogged);
         await AsyncStorage.setItem(userStorageKey, JSON.stringify(userLogged));
@@ -88,9 +92,26 @@ function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  async function signOut() {
+    setUser({} as User);
+    await AsyncStorage.removeItem(userStorageKey);
+  }
+  useEffect(() => {
+    async function loadUserStorageData() {
+      const userStoraged = await AsyncStorage.getItem(userStorageKey);
+
+      if (userStoraged) {
+        const userLogged = JSON.parse(userStoraged) as User;
+        setUser(userLogged)
+      }
+      setUserStoragedLoading(false);
+    }
+    loadUserStorageData();
+  }, [])
+
   return (
     <AuthContext.Provider
-      value={{ user, signInWithGoogle, signInWithApple }}
+      value={{ user, signInWithGoogle, signInWithApple, signOut, userStorageLoading }}
     >
       {children}
     </AuthContext.Provider>

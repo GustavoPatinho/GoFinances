@@ -45,9 +45,11 @@ import {
   Fields,
   TransactionsTypes,
 } from './styles';
+import { useAuth } from '../../hooks/auth';
 
 export function Register() {
-  const dataKey = '@gofinances:transactions'
+  const { user } = useAuth();
+  const dataKey = `@gofinances:transactions_user:${user.id}`
   const [category, setCategory] = useState({
     key: 'category',
     name: 'Categoria',
